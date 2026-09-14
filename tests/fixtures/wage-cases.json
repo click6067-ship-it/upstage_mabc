@@ -1,0 +1,342 @@
+{
+  "meta": {
+    "currency": "KRW",
+    "money_unit": "integer_won",
+    "time_unit": "integer_minutes",
+    "rounding_rule": "sum(minutes * hourly_rate) over records, then integer rounding: (numerator + 30) // 60 for positive numerator. Python round() is NOT used (banker's rounding, not 사사오입). hourly_rate is won per hour.",
+    "confirmed_zero_vs_null": "null = unconfirmed/missing; 0 = user-confirmed zero. do not fill null with 0.",
+    "payment_sum_rule": "sum only user-confirmed wage allocations; handle duplicate/split/cash/unallocated separately.",
+    "planned_not_summed": "do not sum planned work or payment promises as actual.",
+    "separations": [
+      "statement_internal_arithmetic",
+      "payment_difference",
+      "base_pay_reference_arithmetic"
+    ],
+    "excluded": [
+      "arbitrary_hourly_rate_back_calculation",
+      "minimum_wage_auto_substitution",
+      "statutory_allowance_determination",
+      "difference_auto_bill_confirmation",
+      "duplicate_summation"
+    ],
+    "flow": [
+      "original",
+      "user_confirmation",
+      "comparison_arithmetic",
+      "explanation_questions",
+      "bilingual_correction_impact",
+      "answer_complement_request_modified_statement",
+      "user_confirmation_then_issue_summary",
+      "answer_additional_payment_reflection",
+      "user_termination_status"
+    ]
+  },
+  "cases": [
+    {
+      "id": "A",
+      "type": "month_over_month_comparison",
+      "input": {
+        "previous_month": {
+          "total_payment": 2400000,
+          "deduction": 200000,
+          "statement_actual_payment": 2200000,
+          "linked_payment_confirmed": 2200000
+        },
+        "current_month": {
+          "total_payment": 2300000,
+          "deduction": 250000,
+          "statement_actual_payment": 2050000,
+          "linked_payment_confirmed": 2030000
+        }
+      },
+      "expected": {
+        "monthly_change_total_payment": -100000,
+        "monthly_change_deduction": 50000,
+        "monthly_change_statement_actual_payment": -150000,
+        "monthly_change_linked_payment_confirmed": -170000,
+        "statement_minus_linked_previous": 0,
+        "statement_minus_linked_current": 20000,
+        "statement_minus_linked_change": 20000
+      },
+      "notes": {
+        "confirmed_vs_unconfirmed": "current month linked_payment_confirmed 2030000 is a confirmed input value. unconfirmed part is the cause of the 20000 difference, not the linked amount itself.",
+        "remaining_questions": [
+          "cause of 20000 difference between statement actual payment and linked payment in current month",
+          "relationship between deduction increase 50000 and total payment decrease 100000"
+        ],
+        "no_duplicate_sum": "monthly change items and statement-minus-linked difference are separate lines, not summed into one final figure."
+      }
+    },
+    {
+      "id": "B",
+      "type": "base_pay_hours_correction_5stage",
+      "input": {
+        "hourly_rate_per_hour": 12000,
+        "other": 384000,
+        "deduction": 208000,
+        "stages": [
+          {
+            "name": "1_원본",
+            "statement_base_minutes": 9120,
+            "confirmed_base_minutes": null,
+            "actual_payment": 1980000,
+            "statement_is_corrected": false,
+            "status": "원본 명세서 존재. 명세서 기본급 = 9120분 × (12000/60)원 = 1,824,000원."
+          },
+          {
+            "name": "2_추가 지급",
+            "statement_base_minutes": 9120,
+            "confirmed_base_minutes": null,
+            "actual_payment": 2000000,
+            "statement_is_corrected": false,
+            "status": "같은 급여에 20000원 추가 지급 확인, 실제 지급 2000000원으로 반영. 명세서는 원본 그대로."
+          },
+          {
+            "name": "3_160시간 확인",
+            "statement_base_minutes": 9120,
+            "confirmed_base_minutes": 9600,
+            "actual_payment": 2000000,
+            "statement_is_corrected": false,
+            "status": "해당 기본급의 실제 근무시간 160시간(9600분) 확인. 명세서는 아직 원본(152시간) 기준."
+          },
+          {
+            "name": "4_158시간 정정",
+            "statement_base_minutes": 9120,
+            "confirmed_base_minutes": 9480,
+            "actual_payment": 2000000,
+            "statement_is_corrected": false,
+            "status": "160시간에서 158시간(9480분)으로 정정. 수정 명세서 아직 미적용."
+          },
+          {
+            "name": "5_수정 명세서 적용",
+            "statement_base_minutes": 9480,
+            "confirmed_base_minutes": 9480,
+            "actual_payment": 2000000,
+            "statement_is_corrected": true,
+            "other_unchanged": true,
+            "deduction_unchanged": true,
+            "status": "158시간 기준 수정 명세서 적용. 기타·공제 그대로."
+          }
+        ]
+      },
+      "expected": {
+        "stages": [
+          {
+            "name": "1_원본",
+            "statement_base_pay": 1824000,
+            "statement_total": 2000000,
+            "payment_difference": 20000,
+            "base_pay_reference_diff": null,
+            "payment_diff_available": true,
+            "base_pay_ref_available": false
+          },
+          {
+            "name": "2_추가 지급",
+            "statement_base_pay": 1824000,
+            "statement_total": 2000000,
+            "payment_difference": 0,
+            "base_pay_reference_diff": null,
+            "payment_diff_available": true,
+            "base_pay_ref_available": false
+          },
+          {
+            "name": "3_160시간 확인",
+            "statement_base_pay": 1824000,
+            "statement_total": 2000000,
+            "payment_difference": 0,
+            "base_pay_reference_diff": 96000,
+            "payment_diff_available": true,
+            "base_pay_ref_available": true
+          },
+          {
+            "name": "4_158시간 정정",
+            "statement_base_pay": 1824000,
+            "statement_total": 2000000,
+            "payment_difference": 0,
+            "base_pay_reference_diff": 72000,
+            "payment_diff_available": true,
+            "base_pay_ref_available": true
+          },
+          {
+            "name": "5_수정 명세서 적용",
+            "statement_base_pay": 1896000,
+            "statement_total": 2072000,
+            "payment_difference": 72000,
+            "base_pay_reference_diff": 0,
+            "payment_diff_available": true,
+            "base_pay_ref_available": true
+          }
+        ],
+        "corrected_statement_minus_actual": 72000,
+        "base_pay_change": 72000,
+        "statement_total_change": 72000,
+        "actual_payment_change": 20000,
+        "correction_applied_only_at_stage5": true
+      },
+      "notes": {
+        "original_payment_difference_not_bill": "원본 지급 차이 20000은 체불로 자동 확정하지 않음.",
+        "base_pay_reference_separate": "152h vs 158h 기본급 참고 산술은 별도 산식으로 남김.",
+        "correction_not_auto": "시간만 고쳤다고 수정 명세서를 자동 적용하지 않음. 5단계에서 명시적 적용.",
+        "base_pay_reference_diff_meaning": "해당 명세서 기본급(단기) 대비 확인된 근무시간 기준 기본급 산술 차이. 명세서 기본급이 바뀌기 전까지는 원본 152시간 기준.",
+        "unconfirmed": [
+          "160시간 확인의 근거(기록·증빙)와 158시간 정정 근거 분리 필요",
+          "추가 20000원이 어떤 항목 보정인지 사용자 확인 필요",
+          "기타·공제가 정말 그대로인지 재확인"
+        ]
+      }
+    },
+    {
+      "id": "C1",
+      "type": "statement_only_receipt_unknown",
+      "input": {
+        "statement_actual_payment": 2200000,
+        "actual_receipt_confirmed": null,
+        "item_list_complete": true
+      },
+      "expected": {
+        "statement_actual_payment": 2200000,
+        "actual_receipt": null,
+        "payment_difference": null,
+        "total_payment_assessable": false,
+        "statement_preserved": true
+      },
+      "notes": {
+        "difference_is_null": "명세서만 있고 실제 수령 여부를 모름 → 지급 차이 null. 0원 수령 확인과 구분.",
+        "statement_preserved": "명세서 기재 실지급액 2200000원은 보존함. 수령 여부 불명이라고 0으로 대체하지 않음.",
+        "remaining_questions": [
+          "실제 수령 여부",
+          "수령했다면 금액·날짜"
+        ]
+      }
+    },
+    {
+      "id": "C2",
+      "type": "item_list_incomplete_statement_preserved",
+      "input": {
+        "statement_actual_payment": 1800000,
+        "item_list_complete": false,
+        "actual_receipt_confirmed": 1800000
+      },
+      "expected": {
+        "statement_actual_payment": 1800000,
+        "actual_receipt": 1800000,
+        "payment_difference": 0,
+        "internal_total_verification_suspended": true,
+        "statement_preserved": true,
+        "total_payment_assessable": false
+      },
+      "notes": {
+        "internal_verification_only_suspended": "항목 목록 불완전 → 명세서 내부 합계 검증만 보류. 확인한 명세서 기재 실지급액 1800000원은 보존.",
+        "difference_not_zeroed": "지급 차이 0은 확인된 값 기준. 불완전 항목을 0으로 채워서 만들지 않음.",
+        "remaining_questions": [
+          "누락 항목의 실체와 금액",
+          "총지급 확정 여부"
+        ]
+      }
+    },
+    {
+      "id": "C3",
+      "type": "statement_100k_received_120k_difference",
+      "input": {
+        "statement_actual_payment": 100000,
+        "actual_receipt_confirmed": 120000,
+        "item_list_complete": true
+      },
+      "expected": {
+        "statement_actual_payment": 100000,
+        "actual_receipt": 120000,
+        "payment_difference": -20000,
+        "zeroed_or_return_obligation_judgment": false,
+        "statement_preserved": true
+      },
+      "notes": {
+        "difference_minus_20000": "명세서 실지급 100000원, 확인된 실제 수령 120000원 → 지급 차이 -20000원.",
+        "no_zeroing": "차이를 0으로 자르거나 반환 의무로 판단하지 않음.",
+        "fields_separated": "명세서 실지급액(100000)과 실제 수령액(120000)은 별도 필드.",
+        "remaining_questions": [
+          "명세서보다 20000원 더 받은 이유·항목",
+          "추가 지급이 다음 기간 이월인지 별도 지급인지"
+        ]
+      }
+    },
+    {
+      "id": "C4",
+      "type": "statement_only_receipt_confirmed_zero",
+      "input": {
+        "statement_actual_payment": 150000,
+        "actual_receipt_confirmed": 0,
+        "item_list_complete": true
+      },
+      "expected": {
+        "statement_actual_payment": 150000,
+        "actual_receipt": 0,
+        "payment_difference": 150000,
+        "total_payment_assessable": false,
+        "statement_preserved": true
+      },
+      "notes": {
+        "confirmed_zero_vs_null": "0원 수령을 사용자가 확인한 경우. null(수령 여부 모름)과 구분.",
+        "difference_not_zeroed": "실제 수령 0원이 확인됐으므로 지급 차이 = 명세서 실지급액. 차이를 0으로 자르지 않음.",
+        "remaining_questions": [
+          "수령 0원의 이유(미지급·일부 지급 후 정산·미확인 항목 등)",
+          "항목별 확인 상태"
+        ]
+      }
+    },
+    {
+      "id": "D",
+      "type": "minute_rate_rounding_10001_x3",
+      "input": {
+        "records": [
+          {"minutes": 1, "hourly_rate": 10001},
+          {"minutes": 1, "hourly_rate": 10001},
+          {"minutes": 1, "hourly_rate": 10001}
+        ]
+      },
+      "expected": {
+        "sum_min_times_rate": 30003,
+        "divided_by_60": 500.05,
+        "rounded_won": 500
+      },
+      "notes": {
+        "rule": "합산 후 (분자+30)//60 정수 사사오입. Python round() 사용 안 함.",
+        "anti_pattern": "개별 환산 후 합산하면 501원으로 달라짐 → 규칙 정당."
+      }
+    },
+    {
+      "id": "E",
+      "type": "minute_rate_rounding_10050_x1",
+      "input": {
+        "records": [
+          {"minutes": 1, "hourly_rate": 10050}
+        ]
+      },
+      "expected": {
+        "sum_min_times_rate": 10050,
+        "divided_by_60": 167.5,
+        "rounded_won": 168
+      },
+      "notes": {
+        "rule": "합산 후 (분자+30)//60 정수 사사오입."
+      }
+    },
+    {
+      "id": "F",
+      "type": "minute_rate_rounding_9990_x1_half",
+      "input": {
+        "records": [
+          {"minutes": 1, "hourly_rate": 9990}
+        ]
+      },
+      "expected": {
+        "sum_min_times_rate": 9990,
+        "divided_by_60": 166.5,
+        "rounded_won": 167
+      },
+      "notes": {
+        "rule": "166.5 → 사사오입 167원. Python round(166.5)=166과 다름을 확인용 반례.",
+        "rounding_rule_verification": "Python round는 사사오입이 아니므로 (분자+30)//60 정수 산술 사용."
+      }
+    }
+  ]
+}
