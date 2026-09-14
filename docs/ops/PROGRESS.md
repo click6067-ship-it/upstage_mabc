@@ -27,6 +27,13 @@
 - `tests/fixtures/wage-cases.json`: `470ed5acb90fb174bedd9c51e95a907bc3ce229bfa06ee9868fa31eb20acdf34`
 - `tests/verify_wage_cases.py`: `95f02a19bae17f429ab732141b85d92d53fbb4f0f0461eac5fad1f4295e58d16`
 
+## 이번 변경 (데이터모델 검수·수정)
+
+- DATA-MODEL.md 검수(A/B) 결과를 실제 파일과 대조한 뒤, 유효한 문제만 수정함. 자식이 기준4 묶음에 넣은 14번·20번 금지 조합은 지급/배분과 직접 무관하여 문서 오류로 보지 않고 수정하지 않음. 자식이 3.6 표에 "반영된 문장 없음"이라고 지적한 부분은 실제 482행과 불일치하여 수정 범위에서 제외함.
+- 수정 절: 3.3.3(text sha256 별도 계산·별도 필드 관리 명시), 3.6 표(periodAdopted가 adopted 종속 필드 경계 명확화), 3.6.1(채택본 교체가 정정의 한 종류이며 5.1/5.2 적용 연결), 3.8.3(순회 표현 "함께 갱신"을 "재계산 때문에 역수정하지 않음, 수동 덮어쓰기 금지"로 정리), 3.9(ratePerHourWon 범위 밖 값 저장 가능 + 정상 계산 미사용 + 16번 금지 조합 참조), 3.10(동일 지급 중복 판단 기준을 7장 규칙 8번 actualPaymentId+입금일+금액+채널로 명확화, 파일 해시/새 ID만으로 단정 금지), 20번 금지 조합(노출 금지 대상을 photo/pdf 식별 조합과 text sourceValue 원문 전체로 분리, 원본 blob 경로 표현을 원본 저장 키로 통일).
+- 문서 검산: 항목 순서 변경에도 출처 유지(3.5 targetId/targetItemId/fieldName), 수정본 채택 전후 상태(3.6.1/5.1/5.2), 22시~다음날06시 휴게60분=420분(DOMAIN.md 22.1), 같은 입금 중복 등록(DOMAIN.md 19.3 + DATA-MODEL.md 3.10/7장 규칙 8번) 검토 완료. 충돌 없음 확인.
+- 기존 tests/verify_wage_cases.py 실행: 정상 exit 0, --negative-test/-c3-override/-empty-list/-missing-f/-dup-a/-short-b-expected/-mutate-b-expected 각각 exit 1. 총 8개 종료코드(정상 1, 비정상 7). 이전 기록과 일치.
+
 ## 이번 변경 (검산 스크립트 고정 + DOMAIN/JSON 수정 + INDEX/PROGRESS 갱신 + 정정 버전 규칙)
 
 - DOMAIN.md 11.1: 기타 384,000원·공제 208,000원·명세서 기본급·명세서 합계 항목 복구. B1/B2 문단에서 지급 차이 계산 가능 및 기본급 참고 산술 보류를 명시.
@@ -76,8 +83,24 @@
 - 제품용 별도 Python 환경: 미확인
 - pip 패키지 목록: 실패 (pip 파일 없음, 조회하지 못함)
 - Vercel CLI 명령: 찾지 못함 (토큰 존재 여부는 이 결과만으로 판단하지 않음)
-- doc-compare 스크립트 실제 실행: 미실행
-- doc-compare Hermes 등록 상태: 목록 기준 미확인
+- doc-compare 원본 보관: `vendor/doc-compare-original/compare_docs.py`, `vendor/doc-compare-original/SKILL.md`에 원본 그대로 보관. 원본 수정 없음.
+- doc-compare 원본/보관본 해시: compare_docs.py 원본·보관본 모두 `9a1c4fbf5d86a37d814aaecba17faa24bcb8407a027bc7faa5d170cd7b2cc63a`, SKILL.md 둘 다 `5791458c0401b3e346264238ae3de36b0359a0a84c717a95630d893ec5d4c09f` → 일치.
+- doc-compare 원본 실제 실행 반례 결과(이번 턴 재확인, 원본 수정 없음):
+  - a) 급여 이동(1↔2) + 지급일 문장 변경: 원본은 순서 변경 2건 + 본문 변경 1건(섹션 변경) 둘 다 보고, "실제 변경 건수 (순서 변경 제외): 1건"
+  - c) 답변 기록 보관 7일 → 14일: 원본은 "14일"만으로 "14일 이내 회신 의무 신설"을 붙임 (의무 추정 있음)
+  - d) 구1 오전수당/구2 현장수당 → 신2 오전수당: 원본은 순서 변경 1건(1→2) + 삭제 1건(오전수당) + 변경 1건(현장→오전)으로 보고하고 "실제 변경 건수 (순서 변경 제외): 2건" — 동일 신항목을 이동과 변경에 중복 매칭 (문제)
+- doc-compare 개선: `backend/doc_compare/compare_docs.py` 업데이트
+  - 파싱 시 번호 항목 줄을 본문(body_lines)에서 분리해 순수 이동만으로는 본문 변경으로 잡히지 않게 수정
+  - 번호 항목 매칭을 이동(정규화 텍스트 동일) 먼저 소비한 뒤, 남은 동일 번호만 변경으로, 최종 남은 구/신 항목만 삭제/추가로 분류하도록 수정 (같은 항목을 두 번 사용하지 않음)
+  - 항목 변경 유무와 무관하게 일반 문단 본문 변경은 섹션 변경으로 항상 보고하도록 수정
+- doc-compare 테스트 확장: `backend/tests/test_compare.py` (20사례)
+  - 기존 13개 유지 + 신규 7개 추가: 구1 식대→신2 식대(항목 변경 0, 본문 변경 0), 구1 식대→신1 교통비/신2 식대(이동1+추가1), 식대 금액+지급일 문단 동시 변경(항목1+본문1), 순수 이동 전부 0건 확인, 번호 항목과 본문 비교 독립성 확인 등
+  - tempfile/subprocess로 통일, 셸 임시파일/head/tail 없음
+- doc-compare 테스트 실행: `python -B backend/tests/test_compare.py` → exit 0, 20개 전부 통과
+- 미흡했던 3사례 반영 확인:
+  - ① 구1 식대 → 신2 식대만 바뀌면 이동 1건, 항목/본문 변경 0건 (test_move_only_same_item_different_number, test_pure_move_all_zero)
+  - ② 구1 식대 → 신1 교통비/신2 식대면 이동 1건 + 추가 1건(교통비), 삭제/변경 없음 (test_move_and_add, test_move_with_new_item_in_place)
+  - ③ 식대 5만원→6만원과 일반 문단 지급일 10일→20일이 같이 바뀌면 항목 변경 1건 + 본문 변경 1건 둘 다 보고 (test_item_change_and_body_change)
 - 브라우저 도구 실제 동작: 미확인
 - 실제 사용자 검토: 미실행
 - 번역 검토: 미실행
