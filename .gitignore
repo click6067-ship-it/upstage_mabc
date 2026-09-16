@@ -7,3 +7,10 @@ venv/
 node_modules/
 .DS_Store
 Thumbs.db
+dist/
+!frontend/dist
+dist-server/
+api/*.py:cache
+
+.vercel
+.env*
