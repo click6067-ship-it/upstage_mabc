@@ -5,6 +5,7 @@
     { "src": "app.py", "use": "@vercel/python" }
   ],
   "routes": [
+    { "src": "/paychecker-logo.png", "dest": "/frontend/dist/paychecker-logo.png" },
     { "src": "/api/(.*)", "dest": "/app.py" },
     { "src": "/assets/(.+)", "dest": "/frontend/dist/assets/$1" },
     { "src": "/samples/(.+)", "dest": "/frontend/dist/samples/$1" },

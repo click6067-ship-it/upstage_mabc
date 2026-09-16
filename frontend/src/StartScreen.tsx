@@ -1,5 +1,6 @@
 import React from 'react';
 import { ActionKind } from './actions';
+import './StartScreen.css';
 
 interface Props {
   onChoice: (kind: ActionKind) => void;
@@ -37,38 +38,53 @@ export default function StartScreen({ onChoice, onPdfCompare }: Props) {
     onChoice(kind);
   };
 
+  const handleKeyDown = (e: React.KeyboardEvent, kind: ActionKind) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      handleChoice(kind);
+    }
+  };
+
   return (
     <main className="start-page">
       <section className="start-card">
         <div className="start-brand">
-          <h1 className="start-title">Paychecker</h1>
-          <p className="start-sub">
-            내 월급, 어디가 달라졌을까요?
-          </p>
-          <p className="start-desc">
-            한국어 명세서가 낯선 이주노동자를 위한 급여 확인
-          </p>
+          <img
+            className="start-logo"
+            src="/paychecker-logo.png"
+            alt="Paychecker 로고"
+          />
+          <span className="start-brand-name">Paychecker</span>
         </div>
+
+        <h2 className="start-hero-title">월급명세서, 어디가 달라졌나요?</h2>
+        <p className="start-hero-desc">
+          한국어 명세서가 낯선 외국인 노동자를 위해, 바뀐 금액과 회사에 물어볼 질문을 정리해 드려요.
+        </p>
 
         <div className="start-pdf-entry">
           {onPdfCompare ? (
-            <button className="start-pdf-entry-btn" type="button" onClick={onPdfCompare}>
-              <span className="start-pdf-entry-title">명세서 PDF 비교</span>
-              <span className="start-pdf-entry-desc">
-                정정 전후 명세서를 PDF로 올려서 비교할 수 있어요.
-              </span>
+            <button
+              className="start-pdf-btn"
+              type="button"
+              onClick={onPdfCompare}
+            >
+              명세서 PDF 비교
             </button>
           ) : null}
         </div>
+        <p className="start-sample-hint">예시 명세서로도 시작할 수 있어요.</p>
 
         <ul className="start-actions">
           {choices.map(c => (
-            <li key={c.value}>
+            <li key={c.value} className="start-choice-item">
               <div
                 className={`start-choice-card${selected === c.value ? ' selected' : ''}`}
-                onClick={() => onChoice(c.value)}
+                onClick={() => handleChoice(c.value)}
+                onKeyDown={(e) => handleKeyDown(e, c.value)}
                 role="button"
                 tabIndex={0}
+                aria-pressed={selected === c.value}
               >
                 <p className="start-choice-title">{c.title}</p>
                 <p className="start-choice-desc">{c.desc}</p>
@@ -76,10 +92,6 @@ export default function StartScreen({ onChoice, onPdfCompare }: Props) {
             </li>
           ))}
         </ul>
-
-        <p className="start-note">
-          입력한 내용은 이 화면에서만 잠깐 기억해요. 새로고침하면 지워질 수 있어요.
-        </p>
       </section>
     </main>
   );

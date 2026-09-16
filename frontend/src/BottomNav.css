@@ -53,3 +53,72 @@
 .page-with-bottom-nav {
   padding-bottom: calc(64px + env(safe-area-inset-bottom, 0px));
 }
+
+/* 설정 모달 — BottomNav 위에 표시 */
+.settings-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(20, 20, 20, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  box-sizing: border-box;
+  z-index: 50;
+}
+
+.settings-modal {
+  background: #ffffff;
+  border-radius: 16px;
+  width: 100%;
+  max-width: 380px;
+  padding: 20px;
+  box-sizing: border-box;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
+}
+
+.settings-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.settings-modal-title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--foreground, #1a1a1a);
+}
+
+.settings-modal-close {
+  border: 0;
+  background: transparent;
+  color: var(--muted, #5b6770);
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 8px;
+}
+
+.settings-modal-close:hover {
+  background: var(--bg-light, #f3f5f4);
+  color: var(--foreground, #1a1a1a);
+}
+
+.settings-modal-body {
+  margin-bottom: 20px;
+}
+
+.settings-modal-text {
+  margin: 0 0 12px;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--muted, #5b6770);
+}
+
+.settings-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+}
