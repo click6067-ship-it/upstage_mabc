@@ -1,4 +1,4 @@
-import React, { useState, useRef, useMemo, useEffect } from 'react';
+import React, { useState, useRef, useMemo, useEffect, useCallback } from 'react';
 import { RowInput, CompareRouteState, CompareResult, CompareError } from './store/types';
 import { ItemChangeResult, type FieldValue, type SourceRef } from './api/types';
 import { postExplain, buildExplainRequest, ExplainState, type ExplainResult, type ExplainError } from './api/explain';
@@ -6,6 +6,7 @@ import ActionBlock from './ActionBlock';
 import { formatAmount, formatDetails, formatLabel, formatSourceText } from './actions';
 
 interface Props {
+  route: CompareRouteState;
   result: CompareResult | null;
   error: CompareError | null;
   pending: boolean;
@@ -22,7 +23,7 @@ const summaryLabels: Array<[string, string]> = [
   ['diffPercent', '차액율(%)'],
 ];
 
-export default function ResultScreen({ result, error, pending, retryCount, onBack, onRetry, onStartOver }: Props) {
+export default function ResultScreen({ route, result, error, pending, retryCount, onBack, onRetry, onStartOver }: Props) {
   const prevResultRef = useRef<CompareResult | null>(null);
   const [activeResult, setActiveResult] = useState<CompareResult | null>(null);
   const [explanationOpen, setExplanationOpen] = useState(false);
@@ -127,7 +128,7 @@ export default function ResultScreen({ result, error, pending, retryCount, onBac
               </p>
               <ul className="change-list">
                 {activeResult.data.itemChanges.map((ic, idx) => (
-                  <ItemChangeRow key={idx} ic={ic} latestResult={activeResult} prevResult={prevResultRef.current} />
+                  <ItemChangeRow key={idx} ic={ic} latestResult={activeResult} prevResult={prevResultRef.current} route={route} />
                 ))}
                 {activeResult.data.itemChanges.length === 0 ? (
                   <li className="change-empty">
@@ -175,6 +176,16 @@ export default function ResultScreen({ result, error, pending, retryCount, onBac
                 차이 설명과 질문 만들기
               </button>
             </section>
+
+            <p className="eps-link">
+              <a
+                href="https://eps.hrdkorea.or.kr/e9/user/language/language.do?method=languageGuide"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                외국어 표현 찾아보기 (새 탭)
+              </a>
+            </p>
           </>
         ) : null}
       </div>
@@ -186,6 +197,7 @@ export default function ResultScreen({ result, error, pending, retryCount, onBac
       {explanationOpen && activeResult ? (
         <ExplanationDialog
           result={activeResult}
+          route={route}
           onClose={() => setExplanationOpen(false)}
         />
       ) : null}
@@ -193,7 +205,19 @@ export default function ResultScreen({ result, error, pending, retryCount, onBac
   );
 }
 
-function ItemChangeRow({ ic, latestResult, prevResult }: { ic: ItemChangeResult; latestResult: CompareResult; prevResult: CompareResult | null }) {
+function ItemChangeRow({ ic, latestResult, prevResult, route }: { ic: ItemChangeResult; latestResult: CompareResult; prevResult: CompareResult | null; route: CompareRouteState }) {
+  // route에서 실제 라벨 찾기 (beforeItemId / afterItemId 기준)
+  const findLabelById = useCallback((id: string | undefined) => {
+    if (!id) return '';
+    for (const row of route.before) {
+      if (row.id === id) return row.label.trim() || row.text.trim() || '';
+    }
+    for (const row of route.after) {
+      if (row.id === id) return row.label.trim() || row.text.trim() || '';
+    }
+    return '';
+  }, [route]);
+
   const kind = ic.contentKind;
   const moved = ic.moved;
   const changedFields = ic.changedFields;
@@ -204,25 +228,37 @@ function ItemChangeRow({ ic, latestResult, prevResult }: { ic: ItemChangeResult;
     : null;
   const previousRequestId = prevResult?.requestId;
 
+  const beforeLabel = findLabelById(ic.beforeItemId ?? '');
+  const afterLabel = findLabelById(ic.afterItemId ?? '');
+
+  const fieldLabelMap: Record<string, string> = {
+
+    amountKrw: '금액',
+    minutes: '근무(분)',
+    rateKrw: '시급',
+    text: '표기',
+  };
+  const changedLabels = changedFields.map(f => fieldLabelMap[f] || f);
+
   return (
     <li className={`change-item kind-${kind}${moved ? ' moved' : ''}`}>
       <div className="change-head">
         <span className="change-kind">{kindBadge(kind)}</span>
         {moved && <span className="move-tag">위치 이동</span>}
-        {changedFields.length > 0 && <span className="changed-tag">바뀐 값: {changedFields.join(', ')}</span>}
+        {changedLabels.length > 0 && <span className="changed-tag">바뀐 값: {changedLabels.join(', ')}</span>}
       </div>
       <dl className="before-after">
         <div>
           <dt className="side-label">기존</dt>
           <dd className="side-amount">{formatAmount(ic.beforeFields)}</dd>
           <dd className="side-details">{formatDetails(ic.beforeFields)}</dd>
-          {formatLabel(ic.beforeFields) ? <dd className="side-label">표기: {formatLabel(ic.beforeFields)}</dd> : null}
+          {beforeLabel ? <dd className="side-label">표기: {beforeLabel}</dd> : null}
         </div>
         <div>
           <dt className="side-label">정정</dt>
           <dd className="side-amount">{formatAmount(ic.afterFields)}</dd>
           <dd className="side-details">{formatDetails(ic.afterFields)}</dd>
-          {formatLabel(ic.afterFields) ? <dd className="side-label">표기: {formatLabel(ic.afterFields)}</dd> : null}
+          {afterLabel ? <dd className="side-label">표기: {afterLabel}</dd> : null}
         </div>
       </dl>
       <div className="item-meta">
@@ -297,11 +333,12 @@ function buildExplainItems(itemChanges: ItemChangeResult[]) {
 }
 
 interface ExplanationDialogProps {
+  route: CompareRouteState;
   result: CompareResult;
   onClose: () => void;
 }
 
-function ExplanationDialog({ result, onClose }: ExplanationDialogProps) {
+function ExplanationDialog({ route, result, onClose }: ExplanationDialogProps) {
   const [explainState, setExplainState] = useState<ExplainState>(null);
   const [consentGiven, setConsentGiven] = useState(false);
   const [copiedMsg, setCopiedMsg] = useState<string | null>(null);
@@ -319,11 +356,28 @@ function ExplanationDialog({ result, onClose }: ExplanationDialogProps) {
       const aAmount = a.amountKrw;
       if (bAmount === null || bAmount === undefined || aAmount === null || aAmount === undefined) continue;
       if (bAmount === aAmount) continue;
-      const label = ic.beforeFields?.text || ic.afterFields?.text || `${ic.beforeItemId || '?'} → ${ic.afterItemId || '?'}`;
+
+      // route에서 실제 라벨 찾기 (beforeItemId / afterItemId 기준)
+      const findLabelById = (id: string | undefined) => {
+        if (!id) return '';
+        for (const row of route.before) {
+          if (row.id === id) return row.label.trim() || row.text.trim() || '';
+        }
+        for (const row of route.after) {
+          if (row.id === id) return row.label.trim() || row.text.trim() || '';
+        }
+        return '';
+      };
+      const beforeLabel = findLabelById(ic.beforeItemId ?? '');
+      const afterLabel = findLabelById(ic.afterItemId ?? '');
+      const label = beforeLabel || afterLabel
+        || ic.beforeFields?.text || ic.afterFields?.text
+        || '이름 없는 항목';
+
       items.push({ beforeItemId: ic.beforeItemId || '', afterItemId: ic.afterItemId || '', beforeAmount: bAmount, afterAmount: aAmount, label });
     }
     return items;
-  }, [result.data.itemChanges]);
+  }, [result.data.itemChanges, route]);
 
   const handleConsent = () => {
     setConsentGiven(true);

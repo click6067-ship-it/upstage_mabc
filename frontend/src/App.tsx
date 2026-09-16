@@ -16,8 +16,11 @@ import PayrollScreen from './payroll/PaycheckScreen';
 import InputScreen from './InputScreen';
 import ResultScreen from './ResultScreen';
 import UploadReview from './UploadReview';
+import BottomNav, { type BottomTab } from './BottomNav';
 import { emptyPaycheckInput } from './payroll/types';
 import type { PaycheckInput } from './payroll/types';
+import SettingsModal from './SettingsModal';
+import './BottomNav.css';
 
 type Phase = 'start' | 'input' | 'result' | 'paycheck' | 'upload-review';
 
@@ -60,6 +63,8 @@ export interface UploadParsedResult {
   }>;
   totals: { grossKrw: number | null; deductionsKrw: number | null; netKrw: number | null };
   warnings: string[];
+  periodStart: string | null;
+  periodEnd: string | null;
 }
 
 const initialUploadReview: UploadReviewState = {
@@ -275,6 +280,38 @@ export default function App() {
 
   const [upReview, setUpReview] = useState<UploadReviewState>(initialUploadReview);
 
+  // 하단 주요 화면 토글 (입력·결과 초기화 없음)
+  const [activeTab, setActiveTab] = useState<BottomTab>('home');
+  const [settingsOpen, setSettingsOpen] = useState(false);
+
+  const navigateToTab = useCallback((tab: BottomTab) => {
+    setActiveTab(tab);
+    // 탭 전환은 라우트/결과/입력을 초기화하지 않는다.
+    if (tab === 'home') {
+      setPhase('start');
+      return;
+    }
+    if (tab === 'statement') {
+      setPhase('input');
+      return;
+    }
+    if (tab === 'compare') {
+      if (!result) {
+        // 결과가 없으면 비교 결과 탭 비활성화 상태를 유지하기 위해 홈으로 되돌림
+        setActiveTab('home');
+        return;
+      }
+      setPhase('result');
+      return;
+    }
+    if (tab === 'settings') {
+      setSettingsOpen(true);
+      return;
+    }
+  }, [result]);
+
+  const closeSettings = useCallback(() => setSettingsOpen(false), []);
+
   const enterUploadReview = useCallback((side: 'before' | 'after') => {
     setPhase('upload-review');
     setUpReview({
@@ -303,11 +340,21 @@ export default function App() {
     const list = side === 'before' ? route.before : route.after;
 
     try {
+      // 원본 목록 보존: 사용자 입력이 있는 행은 유지
+      const incomingItems = draft.items.filter(item => item.checked);
+      if (incomingItems.length === 0) {
+        setUpReview(prev => ({
+          ...prev,
+          phase: 'error',
+          error: { code: 'EMPTY_DRAFT', message: '적용할 항목이 없어요.', retryable: false },
+        }));
+        return;
+      }
+
       const newList: RowInput[] = [...list];
       const updates: Array<{ idx: number; patch: Partial<RowInput> }> = [];
 
-      for (const item of draft.items) {
-        if (!item.checked) continue;
+      for (const item of incomingItems) {
         const existing = newList.find(r => r.label === item.label);
         const row: Partial<RowInput> = {
           key: item.label,
@@ -340,6 +387,16 @@ export default function App() {
         newList[u.idx] = applyRowPatch(newList[u.idx], u.patch);
       }
 
+      // 처음부터 완전히 비어 있던 행만 제거 (사용자 입력은 보존)
+      const filteredList = newList.filter(row => {
+        // 기존 입력이 있던 행은 유지
+        if (row.amount || row.label || row.minutes || row.rate || row.text) return true;
+        // 업로드를 통해 방금 추가된 행도 유지
+        if (row.sourceId === draft.sourceId) return true;
+        // 그 외 완전히 비어있는 행은 제거
+        return false;
+      });
+
       const nextPeriodStart = draft.periodStart ? draft.periodStart : route.periodStart;
       const nextPeriodEnd = draft.periodEnd ? draft.periodEnd : route.periodEnd;
 
@@ -347,7 +404,7 @@ export default function App() {
         ...route,
         periodStart: nextPeriodStart,
         periodEnd: nextPeriodEnd,
-        [side]: newList as RowInput[],
+        [side]: filteredList as RowInput[],
       };
 
       setRoute(newRoute);
@@ -362,68 +419,101 @@ export default function App() {
   }, [upReview, route, setRoute, setUpReview, applyRowPatch]);
 
   if (phase === 'start') {
-    return <StartScreen onChoice={onChoice} onPdfCompare={() => enterUploadReview('before')} />;
+    return (
+      <>
+        <div className="page-with-bottom-nav">
+          <StartScreen onChoice={onChoice} onPdfCompare={() => enterUploadReview('before')} />
+        </div>
+        <BottomNav activeTab={activeTab} hasResult={!!result} onTabChange={navigateToTab} />
+        {settingsOpen && <SettingsModal onClose={closeSettings} />}
+      </>
+    );
   }
 
   if (phase === 'paycheck') {
     return (
-      <PayrollScreen
-        input={paycheckInput}
-        onInputChange={setPaycheckInput}
-        onBack={onBack}
-        onStartOver={() => {
-          requestTagRef.current += 1;
-          setPaycheckInput(emptyPaycheckInput());
-          onStartOver();
-        }}
-      />
+      <>
+        <div className="page-with-bottom-nav">
+          <PayrollScreen
+            input={paycheckInput}
+            onInputChange={setPaycheckInput}
+            onBack={onBack}
+            onStartOver={() => {
+              requestTagRef.current += 1;
+              setPaycheckInput(emptyPaycheckInput());
+              onStartOver();
+            }}
+          />
+        </div>
+        <BottomNav activeTab={activeTab} hasResult={!!result} onTabChange={navigateToTab} />
+        {settingsOpen && <SettingsModal onClose={closeSettings} />}
+      </>
     );
   }
 
   if (phase === 'input') {
     return (
-      <InputScreen
-        route={route}
-        action={action ?? null}
-        pending={pending}
-        error={error}
-        updateRow={updateRow}
-        updateCommon={updateCommon}
-        addBefore={addBefore}
-        addAfter={addAfter}
-        removeRow={removeRow}
-        setMapping={setMapping}
-        clearMappings={clearMappings}
-        setActionChoice={setActionChoice}
-        onRun={runCompare}
-        onBack={onBack}
-        onUploadBefore={() => enterUploadReview('before')}
-        onUploadAfter={() => enterUploadReview('after')}
-      />
+      <>
+        <div className="page-with-bottom-nav">
+          <InputScreen
+            route={route}
+            action={action ?? null}
+            pending={pending}
+            error={error}
+            updateRow={updateRow}
+            updateCommon={updateCommon}
+            addBefore={addBefore}
+            addAfter={addAfter}
+            removeRow={removeRow}
+            setMapping={setMapping}
+            clearMappings={clearMappings}
+            setActionChoice={setActionChoice}
+            onRun={runCompare}
+            onBack={onBack}
+            onUploadBefore={() => enterUploadReview('before')}
+            onUploadAfter={() => enterUploadReview('after')}
+          />
+        </div>
+        <BottomNav activeTab={activeTab} hasResult={!!result} onTabChange={navigateToTab} />
+        {settingsOpen && <SettingsModal onClose={closeSettings} />}
+      </>
     );
   }
 
   if (phase === 'upload-review') {
     return (
-      <UploadReview
-        state={upReview}
-        side={upReview.side}
-        onUpdate={setUpReview}
-        onCancel={cancelUploadReview}
-        onApply={applyUploadReview}
-      />
+      <>
+        <div className="page-with-bottom-nav">
+          <UploadReview
+            state={upReview}
+            side={upReview.side}
+            onUpdate={setUpReview}
+            onCancel={cancelUploadReview}
+            onApply={applyUploadReview}
+          />
+        </div>
+        <BottomNav activeTab={activeTab} hasResult={!!result} onTabChange={navigateToTab} />
+        {settingsOpen && <SettingsModal onClose={closeSettings} />}
+      </>
     );
   }
 
   return (
-    <ResultScreen
-      result={result}
-      error={error}
-      pending={pending}
-      retryCount={0}
-      onBack={onBack}
-      onRetry={onRetry}
-      onStartOver={onStartOver}
-    />
+    <>
+      <div className="page-with-bottom-nav">
+        <ResultScreen
+          route={route}
+          result={result}
+          error={error}
+          pending={pending}
+          retryCount={0}
+          onBack={onBack}
+          onRetry={onRetry}
+          onStartOver={onStartOver}
+        />
+      </div>
+      <BottomNav activeTab={activeTab} hasResult={!!result} onTabChange={navigateToTab} />
+      {settingsOpen && <SettingsModal onClose={closeSettings} />}
+    </>
   );
 }

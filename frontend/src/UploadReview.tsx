@@ -566,8 +566,8 @@ export default function UploadReview({ state, side, onUpdate, onCancel, onApply 
     return {
       items,
       sourceId: sourceName,
-      periodStart: '',
-      periodEnd: '',
+      periodStart: data.periodStart ?? '',
+      periodEnd: data.periodEnd ?? '',
     };
   }
 

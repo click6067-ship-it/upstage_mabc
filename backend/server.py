@@ -304,17 +304,13 @@ def _build_item_text_for_explain(items: List[Dict[str, Any]], max_items: int) ->
             a_amount = af.get("amountKrw") if isinstance(af, dict) else None
 
         label_parts = []
-        if label:
-            label_parts.append(f"항목명={label}")
-        if before_id and after_id:
-            label_parts.append(f"항목ID 기존={before_id} → 정정={after_id}")
-        elif before_id:
-            label_parts.append(f"항목ID 기존={before_id}")
-        elif after_id:
-            label_parts.append(f"항목ID 정정={after_id}")
+        # Solar 설명 대상에는 내부 항목ID와 unknown을 넣지 않는다.
+        display_name = label or ""
+        if display_name:
+            label_parts.append(f"항목명={display_name}")
+        else:
+            label_parts.append("항목명=이름 없는 항목")
 
-        if kind:
-            label_parts.append(f"종류={kind}")
         if moved:
             label_parts.append("위치이동")
         if changed:

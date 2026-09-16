@@ -70,19 +70,17 @@ def _build_item_lines(item_changes: List[Dict[str, Any]], max_items: int) -> str
 
         b_amount = ic.get("beforeAmount")
         a_amount = ic.get("afterAmount")
-        b_text = ic.get("label") or before.get("text")
-        a_text = ic.get("label") or after.get("text")
+        b_text = ic.get("label") or before.get("text") or ""
+        a_text = ic.get("label") or after.get("text") or ""
 
         label_parts: List[str] = []
-        if before_id and after_id:
-            label_parts.append(f"항목ID 기존={before_id} → 정정={after_id}")
-        elif before_id:
-            label_parts.append(f"항목ID 기존={before_id}")
-        elif after_id:
-            label_parts.append(f"항목ID 정정={after_id}")
+        # Solar 설명 대상에는 내부 항목ID와 unknown을 넣지 않는다.
+        display_name = b_text or a_text or ""
+        if display_name:
+            label_parts.append(f"항목명={display_name}")
+        else:
+            label_parts.append("항목명=이름 없는 항목")
 
-        if kind:
-            label_parts.append(f"종류={kind}")
         if moved:
             label_parts.append("위치이동")
         if changed:
