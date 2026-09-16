@@ -121,6 +121,14 @@ export default function ResultScreen({ route, result, error, pending, retryCount
               ← 다시 입력
             </button>
 
+            <button
+              className="explain-primary-btn"
+              onClick={() => setExplanationOpen(true)}
+              type="button"
+            >
+              회사에 물어볼 질문 만들기
+            </button>
+
             <section className="result-section">
               <h2 className="result-section-title">항목별 변경</h2>
               <p className="result-section-sub">
@@ -273,10 +281,6 @@ function ItemChangeRow({ ic, latestResult, prevResult, route }: { ic: ItemChange
           ) : (
             <p className="source-empty">관련 자료가 아직 정리되지 않았어요.</p>
           )}
-        </div>
-        <div className="meta-ref">
-          <p className="meta-label">참고 문구</p>
-          <p className="source-empty">참고 문구가 아직 준비되지 않았어요.</p>
         </div>
       </div>
       {previousValue ? (
