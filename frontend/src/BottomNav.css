@@ -36,6 +36,8 @@
 
 .bottom-nav-tab.active {
   color: #14664a;
+  background: #edf5f1;
+  border-radius: 10px;
 }
 
 .bottom-nav-icon {
