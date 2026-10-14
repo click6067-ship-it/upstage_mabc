@@ -1956,3 +1956,15 @@ button {
   color: var(--danger);
 }
 
+/* 예시 명세서 안내 (note-box 위에 버튼 한 줄) */
+.sample-note {
+  margin-bottom: 10px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+}
+.sample-note p {
+  margin: 0;
+  flex: 1 1 240px;
+}

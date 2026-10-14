@@ -20,6 +20,7 @@ import BottomNav, { type BottomTab } from './BottomNav';
 import { emptyPaycheckInput } from './payroll/types';
 import type { PaycheckInput } from './payroll/types';
 import SettingsModal from './SettingsModal';
+import { isPristine, sampleRoute } from './sample';
 import './BottomNav.css';
 
 type Phase = 'start' | 'input' | 'result' | 'paycheck' | 'upload-review';
@@ -95,6 +96,8 @@ export default function App() {
   const [pending, setPending] = useState(false);
   const [result, setResult] = useState<CompareResult | null>(null);
   const [error, setError] = useState<CompareError | null>(null);
+  // 입력이 없어서 예시 명세서(가상)로 채워 둔 상태
+  const [isSample, setIsSample] = useState(false);
 
   // 급여 화면 입력 상태 (앱 레벨 — 뒤로 갔다 와도 유지)
   const [paycheckInput, setPaycheckInput] = useState<PaycheckInput>(emptyPaycheckInput);
@@ -157,7 +160,7 @@ export default function App() {
     setAction(kind);
   }, []);
 
-  const runCompare = useCallback(async () => {
+  const runCompareWith = useCallback(async (route: CompareRouteState) => {
     const beforeItems = route.before.map((r, idx) => itemFromInput(r, idx + 1, 'before'));
     const afterItems = route.after.map((r, idx) => itemFromInput(r, idx + 1, 'after'));
     const { valid: validMappings, invalid: invalidMappings } = splitMappings(route.mappings, beforeItems, afterItems);
@@ -240,7 +243,20 @@ export default function App() {
     } finally {
       if (thisTag === requestTagRef.current) setPending(false);
     }
-  }, [route]);
+  }, []);
+
+  const runCompare = useCallback(() => runCompareWith(route), [runCompareWith, route]);
+
+  // 예시를 지우고 빈 입력으로: 사용자가 직접 넣을 때
+  const clearSample = useCallback(() => {
+    requestTagRef.current += 1;
+    setRoute(initialRoute);
+    setResult(null);
+    setError(null);
+    setPending(false);
+    setIsSample(false);
+    queuedRef.current = null;
+  }, []);
 
   const onBack = useCallback(() => {
     requestTagRef.current += 1;
@@ -275,6 +291,7 @@ export default function App() {
     setResult(null);
     setError(null);
     setPending(false);
+    setIsSample(false);
     queuedRef.current = null;
   }, []);
 
@@ -291,34 +308,47 @@ export default function App() {
       setPhase('start');
       return;
     }
+    // 처음 온 사람도 모든 탭을 볼 수 있게: 입력이 없으면 예시 명세서(가상)로 채운다. 입력이 있으면 덮지 않는다.
     if (tab === 'statement') {
+      if (isPristine(route)) {
+        setRoute(sampleRoute());
+        setIsSample(true);
+      }
       setPhase('input');
       return;
     }
     if (tab === 'compare') {
-      if (!result) {
-        // 결과가 없으면 비교 결과 탭 비활성화 상태를 유지하기 위해 홈으로 되돌림
-        setActiveTab('home');
+      if (result) {
+        setPhase('result');
         return;
       }
-      setPhase('result');
+      if (isPristine(route)) {
+        const sample = sampleRoute();
+        setRoute(sample);
+        setIsSample(true);
+        runCompareWith(sample);
+        return;
+      }
+      runCompareWith(route);
       return;
     }
     if (tab === 'settings') {
       setSettingsOpen(true);
       return;
     }
-  }, [result]);
+  }, [result, route, runCompareWith]);
 
   const closeSettings = useCallback(() => setSettingsOpen(false), []);
 
   const enterUploadReview = useCallback((side: 'before' | 'after') => {
+    // 내 명세서를 올리면 예시와 섞지 않는다.
+    if (isSample) clearSample();
     setPhase('upload-review');
     setUpReview({
       ...initialUploadReview,
       side,
     });
-  }, [setUpReview]);
+  }, [setUpReview, isSample, clearSample]);
 
   const cancelUploadReview = useCallback(() => {
     setUpReview(initialUploadReview);
@@ -424,7 +454,7 @@ export default function App() {
         <div className="page-with-bottom-nav">
           <StartScreen onChoice={onChoice} onPdfCompare={() => enterUploadReview('before')} />
         </div>
-        <BottomNav activeTab={activeTab} hasResult={!!result} onTabChange={navigateToTab} />
+        <BottomNav activeTab={activeTab} onTabChange={navigateToTab} />
         {settingsOpen && <SettingsModal onClose={closeSettings} />}
       </>
     );
@@ -445,7 +475,7 @@ export default function App() {
             }}
           />
         </div>
-        <BottomNav activeTab={activeTab} hasResult={!!result} onTabChange={navigateToTab} />
+        <BottomNav activeTab={activeTab} onTabChange={navigateToTab} />
         {settingsOpen && <SettingsModal onClose={closeSettings} />}
       </>
     );
@@ -472,9 +502,11 @@ export default function App() {
             onBack={onBack}
             onUploadBefore={() => enterUploadReview('before')}
             onUploadAfter={() => enterUploadReview('after')}
+            sample={isSample}
+            onClearSample={clearSample}
           />
         </div>
-        <BottomNav activeTab={activeTab} hasResult={!!result} onTabChange={navigateToTab} />
+        <BottomNav activeTab={activeTab} onTabChange={navigateToTab} />
         {settingsOpen && <SettingsModal onClose={closeSettings} />}
       </>
     );
@@ -492,7 +524,7 @@ export default function App() {
             onApply={applyUploadReview}
           />
         </div>
-        <BottomNav activeTab={activeTab} hasResult={!!result} onTabChange={navigateToTab} />
+        <BottomNav activeTab={activeTab} onTabChange={navigateToTab} />
         {settingsOpen && <SettingsModal onClose={closeSettings} />}
       </>
     );
@@ -510,9 +542,11 @@ export default function App() {
           onBack={onBack}
           onRetry={onRetry}
           onStartOver={onStartOver}
+          sample={isSample}
+          onClearSample={clearSample}
         />
       </div>
-      <BottomNav activeTab={activeTab} hasResult={!!result} onTabChange={navigateToTab} />
+      <BottomNav activeTab={activeTab} onTabChange={navigateToTab} />
       {settingsOpen && <SettingsModal onClose={closeSettings} />}
     </>
   );

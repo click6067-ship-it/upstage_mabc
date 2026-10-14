@@ -3,6 +3,7 @@ import { RowInput, CompareRouteState, CompareResult, CompareError } from './stor
 import { ItemChangeResult, type FieldValue, type SourceRef } from './api/types';
 import { postExplain, buildExplainRequest, ExplainState, type ExplainResult, type ExplainError } from './api/explain';
 import ActionBlock from './ActionBlock';
+import { SampleNote } from './InputScreen';
 import { formatAmount, formatDetails, formatLabel, formatSourceText } from './actions';
 
 interface Props {
@@ -14,6 +15,9 @@ interface Props {
   onBack: () => void;
   onRetry: () => void;
   onStartOver: () => void;
+  /** 예시 명세서(가상)로 비교한 결과 */
+  sample?: boolean;
+  onClearSample?: () => void;
 }
 
 const summaryLabels: Array<[string, string]> = [
@@ -23,7 +27,7 @@ const summaryLabels: Array<[string, string]> = [
   ['diffPercent', '차액율(%)'],
 ];
 
-export default function ResultScreen({ route, result, error, pending, retryCount, onBack, onRetry, onStartOver }: Props) {
+export default function ResultScreen({ route, result, error, pending, retryCount, onBack, onRetry, onStartOver, sample, onClearSample }: Props) {
   const prevResultRef = useRef<CompareResult | null>(null);
   const [activeResult, setActiveResult] = useState<CompareResult | null>(null);
   const [explanationOpen, setExplanationOpen] = useState(false);
@@ -67,6 +71,7 @@ export default function ResultScreen({ route, result, error, pending, retryCount
         <p className="result-muted">
           새로고침하면 이 결과도 사라질 수 있어요. 입력 화면으로 돌아가도 지금까지 입력한 값은 남아 있어요.
         </p>
+        {sample ? <SampleNote onClear={onClearSample} /> : null}
       </header>
 
       <div className="result-body">

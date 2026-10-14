@@ -352,3 +352,10 @@
 - `.venv` Python으로 `app.py` import 및 `GET /api/health` 200 확인 완료 (별도 서버 구동 없음, `backend.server` 재사용).
 - 프론트 수정·빌드·커밋·push·배포는 design 세션 종료 전 실행하지 않음. 현재 `frontend/dist` 산출물은 이미 존재(`.vercel/static` 포함 대상).
 - 환경변수 입력 설정 URL: https://vercel.com/yos-projects-330f356b/paychecker/settings/environment-variables
+
+## 이번 변경 (2026-10-14 하단 바 전 탭 활성화 + 예시 명세서)
+
+- 요청: 처음 온 사람은 PDF를 올려 보지 않으니 하단 바 모든 탭을 누를 수 있게, 내용은 예시로.
+- 변경: `BottomNav`의 '비교 결과' 비활성 처리 제거(4개 탭 항상 활성). 내 입력이 전혀 없을 때 '명세서' 탭은 `/samples` 예시 명세서(가상, 2026년 8월 정정 전·후 9항목, 식대 50,000→70,000)로 채우고, '비교 결과' 탭은 그 예시로 바로 비교한다(`frontend/src/sample.ts`). 두 화면에 "예시" 안내와 "예시 지우고 직접 입력" 버튼. 입력이 있으면 덮지 않고, PDF 올리기로 들어가면 예시를 지운다. 예시 비교는 키가 필요 없는 `/api/compare`만 쓴다.
+- 확인: `frontend/src/sample.test.ts` 4개 통과, `tsc --noEmit` 통과, 로컬 백엔드(uvicorn)+vite에서 탭 4개 비활성 0개, '비교 결과' → 9항목 짝·식대만 바뀜(50,000→70,000)·예시 안내, '명세서' → 예시 채움, '예시 지우기' → 빈 입력 확인. `frontend/dist` 다시 빌드.
+- 기존 실패(이번 변경과 무관, 미수정): `src/payroll/calculate.test.ts` 2개, `e2e/screen-check.spec.ts`(@playwright/test 미설치).

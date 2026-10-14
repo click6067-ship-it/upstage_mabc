@@ -20,6 +20,9 @@ interface Props {
   onBack: () => void;
   onUploadBefore?: () => void;
   onUploadAfter?: () => void;
+  /** 입력이 없어 예시 명세서(가상)로 채워 둔 상태 */
+  sample?: boolean;
+  onClearSample?: () => void;
 }
 
 export default function InputScreen({
@@ -39,6 +42,8 @@ export default function InputScreen({
   onBack,
   onUploadBefore,
   onUploadAfter,
+  sample,
+  onClearSample,
 }: Props) {
   const matchesChoice = (value: ActionKind) => action === value;
 
@@ -75,6 +80,7 @@ export default function InputScreen({
       ) : null}
       <header className="input-header">
         <h1 className="input-title">정정 전후 비교 — 직접 입력</h1>
+        {sample ? <SampleNote onClear={onClearSample} /> : null}
         <p className="input-muted">
           파일 업로드나 로그인 없이 시작할 수 있어요. 입력한 내용은 이 창에서만 임시로 유지되며, 새로고침하면 지워져요.
           선택을 바꿔도 입력한 값은 남아 있고, 뒤로 가도 입력이 유지돼요.
@@ -393,5 +399,19 @@ function RowField({
         )}
       </fieldset>
     </li>
+  );
+}
+
+/** 예시로 채워 둔 화면임을 알리고, 지우고 직접 입력할 수 있게 한다. */
+export function SampleNote({ onClear }: { onClear?: () => void }) {
+  return (
+    <div className="note-box sample-note" role="note">
+      <p>예시 명세서(가상, 2026년 8월 정정 전·후)로 채워 둔 화면이에요. 내 명세서는 PDF를 올리거나 직접 입력하면 돼요.</p>
+      {onClear ? (
+        <button className="upload-entry-sample-btn" type="button" onClick={onClear}>
+          예시 지우고 직접 입력
+        </button>
+      ) : null}
+    </div>
   );
 }

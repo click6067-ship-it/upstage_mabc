@@ -4,7 +4,6 @@ export type BottomTab = 'home' | 'statement' | 'compare' | 'settings';
 
 interface BottomNavProps {
   activeTab: BottomTab;
-  hasResult: boolean;
   onTabChange: (tab: BottomTab) => void;
 }
 
@@ -17,14 +16,9 @@ const TAB_LABELS: Array<[BottomTab, string]> = [
 
 const ICON_BASE = '/assets/nav';
 
-export default function BottomNav({ activeTab, hasResult, onTabChange }: BottomNavProps) {
-  const press = useCallback(
-    (tab: BottomTab) => {
-      if (tab === 'compare' && !hasResult) return;
-      onTabChange(tab);
-    },
-    [hasResult, onTabChange],
-  );
+// 모든 탭은 항상 누를 수 있다. 내 입력이 없으면 '명세서'·'비교 결과'는 예시 명세서(가상)로 보여 준다.
+export default function BottomNav({ activeTab, onTabChange }: BottomNavProps) {
+  const press = useCallback((tab: BottomTab) => onTabChange(tab), [onTabChange]);
 
   return (
     <nav className="bottom-nav" aria-label="주요 화면 이동">
@@ -37,7 +31,6 @@ export default function BottomNav({ activeTab, hasResult, onTabChange }: BottomN
             onClick={() => press(tab)}
             aria-current={active ? 'page' : undefined}
             type="button"
-            disabled={tab === 'compare' && !hasResult}
           >
             <span className="bottom-nav-icon" data-tab={tab}>
               <img
