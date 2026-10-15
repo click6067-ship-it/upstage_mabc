@@ -1,14 +1,22 @@
 {
   "version": 2,
   "builds": [
-    { "src": "frontend/dist/**", "use": "@vercel/static" },
-    { "src": "app.py", "use": "@vercel/python" }
+    {
+      "src": "frontend/dist/**",
+      "use": "@vercel/static"
+    },
+    {
+      "src": "app.py",
+      "use": "@vercel/python"
+    }
   ],
   "routes": [
-    { "src": "/paychecker-logo.png", "dest": "/frontend/dist/paychecker-logo.png" },
-    { "src": "/api/(.*)", "dest": "/app.py" },
-    { "src": "/assets/(.+)", "dest": "/frontend/dist/assets/$1" },
-    { "src": "/samples/(.+)", "dest": "/frontend/dist/samples/$1" },
-    { "src": "/(.*)", "dest": "/frontend/dist/index.html" }
+    {
+      "src": "/(.*)",
+      "status": 307,
+      "headers": {
+        "Location": "https://paychecker-app.vercel.app/"
+      }
+    }
   ]
 }
